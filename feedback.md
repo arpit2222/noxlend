@@ -25,6 +25,19 @@ The `unwrap()` → `finalizeUnwrap()` pattern for ERC20ToERC7984Wrapper needs cl
 ### confidentialTransferFrom Flow Examples
 More complete examples of the `confidentialTransferFrom` flow would be beneficial. Specifically, examples showing how to handle the `setOperator()` requirement and proper error handling for insufficient ACL permissions would reduce development friction.
 
+### SDK API Positional Arguments vs Object Parameters
+The most significant friction point: `encryptInput` takes **3 positional arguments**, not an options object:
+```typescript
+// Correct — discovered from TypeScript definition file
+const result = await handleClient.encryptInput(amount, "uint256", contractAddress);
+// Returns { handle, handleProof }
+
+// Also correct for decrypt:
+const result = await handleClient.decrypt(handle); // handle directly, not { handle }
+// Returns { value, solidityType }
+```
+The README does not show a complete working example with these exact signatures. Builders who assume an options-object pattern (common in modern JS SDKs) hit a runtime `"Missing required parameters: solidityType, applicationContract"` error that's hard to trace. **A single 10-line code snippet in the README would prevent this entirely.**
+
 ### ACL Management Complexity
 While powerful, the ACL system with `Nox.allowThis()` and `Nox.allow()` requires careful attention to detail. Missing a single `allow()` call makes handles inaccessible, leading to debugging challenges. A helper library or macro system for common ACL patterns would be valuable.
 

@@ -33,10 +33,9 @@ export default function RepayForm({ onSuccess }: { onSuccess?: () => void }) {
       setStep("Checking network...");
       await ensureChain();
 
-      // Total repay = principal + 5% interest
+      const gasPrice = await publicClient.getGasPrice();
       const repayAmount = parseUnits(totalWithInterest, 6);
 
-      // Ensure NoxLend can pull tokens for repayment
       setStep("Setting pool as operator (1/2)...");
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
       const operatorTx = await walletClient.writeContract({
@@ -44,19 +43,22 @@ export default function RepayForm({ onSuccess }: { onSuccess?: () => void }) {
         abi: WrappedConfidentialUSDCABI,
         functionName: "setOperator",
         args: [DEPLOYED_ADDRESSES.NoxLend, deadline],
+        gas: 100000n,
+        gasPrice,
       });
       await publicClient.waitForTransactionReceipt({ hash: operatorTx });
 
-      setStep("Encrypting repay amount...");
+      setStep("Encrypting repay amount (2/2)...");
       const nox = await getNoxClient(window.ethereum);
       const { handle, proof } = await encryptAmount(nox, repayAmount, DEPLOYED_ADDRESSES.NoxLend);
 
-      setStep("Submitting repayment...");
       const tx = await walletClient.writeContract({
         address: DEPLOYED_ADDRESSES.NoxLend,
         abi: NoxLendABI,
         functionName: "repay",
         args: [handle, proof],
+        gas: 1000000n,
+        gasPrice,
       });
       await publicClient.waitForTransactionReceipt({ hash: tx });
 

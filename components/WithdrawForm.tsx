@@ -29,6 +29,7 @@ export default function WithdrawForm({ onSuccess }: { onSuccess?: () => void }) 
       setStep("Checking network...");
       await ensureChain();
 
+      const gasPrice = await publicClient.getGasPrice();
       const amountWei = parseUnits(amount, 6);
 
       setStep("Encrypting amount with Nox TEE...");
@@ -41,6 +42,8 @@ export default function WithdrawForm({ onSuccess }: { onSuccess?: () => void }) 
         abi: NoxLendABI,
         functionName: "withdraw",
         args: [handle, proof],
+        gas: 1000000n,
+        gasPrice,
       });
       await publicClient.waitForTransactionReceipt({ hash: tx });
 

@@ -67,6 +67,7 @@ contract NoxLend is IERC7984Receiver, Ownable {
         bytes calldata inputProof
     ) external {
         euint256 amount = Nox.fromExternal(encryptedAmount, inputProof);
+        Nox.allowThis(amount); // grant this contract ACL access — required before passing to token
 
         // Pull cUSDC from user into this contract
         Nox.allowTransient(amount, address(token));
@@ -105,6 +106,7 @@ contract NoxLend is IERC7984Receiver, Ownable {
         bytes calldata inputProof
     ) external {
         euint256 amount = Nox.fromExternal(encryptedAmount, inputProof);
+        Nox.allowThis(amount); // grant this contract ACL access
 
         // Record borrow position
         euint256 current = _borrowBalance[msg.sender];
@@ -142,6 +144,7 @@ contract NoxLend is IERC7984Receiver, Ownable {
         bytes calldata inputProof
     ) external {
         euint256 amount = Nox.fromExternal(encryptedAmount, inputProof);
+        Nox.allowThis(amount); // grant this contract ACL access
 
         // Pull repayment tokens into pool
         Nox.allowTransient(amount, address(token));
@@ -171,6 +174,7 @@ contract NoxLend is IERC7984Receiver, Ownable {
         bytes calldata inputProof
     ) external {
         euint256 amount = Nox.fromExternal(encryptedAmount, inputProof);
+        Nox.allowThis(amount); // grant this contract ACL access
 
         euint256 current = _supplyBalance[msg.sender];
         require(Nox.isInitialized(current), "no deposit");

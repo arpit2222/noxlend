@@ -1,6 +1,8 @@
 # NoxLend — Private Lending Protocol on iExec Nox
 
-The first private lending protocol on Arbitrum where all positions are fully confidential using iExec Nox Confidential Tokens (ERC-7984).
+> Built for the **iExec Vibe Coding Challenge 2026**
+
+The first private lending protocol on Arbitrum where all positions are fully confidential using iExec Nox Confidential Tokens (ERC-7984). Lenders deposit tokens and earn yield privately. Borrowers take loans with hidden debt positions. No on-chain observer can see balances except the account owner and a designated auditor.
 
 ## 🌟 Features
 

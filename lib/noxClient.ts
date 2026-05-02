@@ -20,7 +20,7 @@ export async function getNoxClient(ethereum: any): Promise<HandleClient> {
 export async function encryptAmount(
   handleClient: HandleClient,
   amount: bigint,
-  contractAddress: string
+  contractAddress: `0x${string}`
 ): Promise<{ handle: `0x${string}`; proof: `0x${string}` }> {
   const result = await handleClient.encryptInput(amount, "uint256", contractAddress);
   return {

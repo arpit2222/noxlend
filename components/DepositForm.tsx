@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useAccount, useWalletClient, usePublicClient } from "wagmi";
-import { parseUnits } from "viem";
+import { parseUnits, encodeFunctionData } from "viem";
+import { ethers } from "ethers";
 import { getNoxClient, encryptAmount } from "@/lib/noxClient";
 import { useEnsureChain } from "@/lib/useEnsureChain";
 import { DEPLOYED_ADDRESSES, MockUSDCABI, WrappedConfidentialUSDCABI, NoxLendABI } from "@/lib/contracts";
@@ -27,21 +28,34 @@ export default function DepositForm({ onSuccess }: { onSuccess?: () => void }) {
     setTxHash(null);
 
     try {
-      // Ensure wallet is on Arbitrum Sepolia before any write
       setStep("Checking network...");
       await ensureChain();
 
+      // Fetch gas price from our RPC so MetaMask can't set it too low
+      const gasPrice = await publicClient.getGasPrice();
+
       const amountWei = parseUnits(amount, 6);
 
-      // Step 1: approve mUSDC for wcUSDC wrapper
-      setStep("Approving mUSDC (1/4)...");
-      const approveTx = await walletClient.writeContract({
-        address: DEPLOYED_ADDRESSES.MockUSDC,
-        abi: MockUSDCABI,
-        functionName: "approve",
-        args: [DEPLOYED_ADDRESSES.WrappedConfidentialUSDC, amountWei],
-      });
-      await publicClient.waitForTransactionReceipt({ hash: approveTx });
+      // Step 1: approve mUSDC for wcUSDC using manual transaction to bypass viem validation
+      setStep("Approving mUSDC...");
+      try {
+        // Use raw transaction to bypass viem address validation
+        const approveData = encodeFunctionData({
+          abi: MockUSDCABI,
+          functionName: "approve",
+          args: [DEPLOYED_ADDRESSES.WrappedConfidentialUSDC, amountWei]
+        });
+        
+        const approveTx = await walletClient.sendTransaction({
+          to: DEPLOYED_ADDRESSES.MockUSDC,
+          data: approveData,
+          gas: 300000n
+        });
+        await publicClient.waitForTransactionReceipt({ hash: approveTx });
+      } catch (approveError: any) {
+        console.error("Approve error:", approveError);
+        throw new Error(`Failed to approve mUSDC: ${approveError?.shortMessage || approveError?.message}`);
+      }
 
       // Step 2: wrap mUSDC → confidential wcUSDC (1:1)
       setStep("Wrapping mUSDC → wcUSDC (2/4)...");
@@ -50,6 +64,8 @@ export default function DepositForm({ onSuccess }: { onSuccess?: () => void }) {
         abi: WrappedConfidentialUSDCABI,
         functionName: "wrap",
         args: [address, amountWei],
+        gas: 300000n,
+        gasPrice,
       });
       await publicClient.waitForTransactionReceipt({ hash: wrapTx });
 
@@ -61,6 +77,8 @@ export default function DepositForm({ onSuccess }: { onSuccess?: () => void }) {
         abi: WrappedConfidentialUSDCABI,
         functionName: "setOperator",
         args: [DEPLOYED_ADDRESSES.NoxLend, deadline],
+        gas: 100000n,
+        gasPrice,
       });
       await publicClient.waitForTransactionReceipt({ hash: operatorTx });
 
@@ -74,6 +92,8 @@ export default function DepositForm({ onSuccess }: { onSuccess?: () => void }) {
         abi: NoxLendABI,
         functionName: "depositToPool",
         args: [handle, proof],
+        gas: 1000000n,
+        gasPrice,
       });
       await publicClient.waitForTransactionReceipt({ hash: depositTx });
 
@@ -83,7 +103,8 @@ export default function DepositForm({ onSuccess }: { onSuccess?: () => void }) {
       onSuccess?.();
     } catch (err: any) {
       console.error("Deposit error:", err);
-      setError(err?.shortMessage || err?.message || "Transaction failed");
+      const detail = err?.cause?.reason || err?.cause?.message || err?.shortMessage || err?.message || "Transaction failed";
+      setError(detail);
       setStep("");
     } finally {
       setLoading(false);

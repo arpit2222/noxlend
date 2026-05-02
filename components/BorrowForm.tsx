@@ -32,7 +32,8 @@ export default function BorrowForm({ onSuccess }: { onSuccess?: () => void }) {
       setStep("Checking network...");
       await ensureChain();
 
-      // Set NoxLend as operator so it can transfer tokens out to borrower
+      const gasPrice = await publicClient.getGasPrice();
+
       setStep("Setting pool as operator on wcUSDC (1/2)...");
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600 * 24);
       const operatorTx = await walletClient.writeContract({
@@ -40,20 +41,23 @@ export default function BorrowForm({ onSuccess }: { onSuccess?: () => void }) {
         abi: WrappedConfidentialUSDCABI,
         functionName: "setOperator",
         args: [DEPLOYED_ADDRESSES.NoxLend, deadline],
+        gas: 100000n,
+        gasPrice,
       });
       await publicClient.waitForTransactionReceipt({ hash: operatorTx });
 
-      setStep("Encrypting borrow amount with Nox...");
+      setStep("Encrypting borrow amount with Nox (2/2)...");
       const amountWei = parseUnits(amount, 6);
       const nox = await getNoxClient(window.ethereum);
       const { handle, proof } = await encryptAmount(nox, amountWei, DEPLOYED_ADDRESSES.NoxLend);
 
-      setStep("Submitting borrow transaction...");
       const tx = await walletClient.writeContract({
         address: DEPLOYED_ADDRESSES.NoxLend,
         abi: NoxLendABI,
         functionName: "borrow",
         args: [handle, proof],
+        gas: 1000000n,
+        gasPrice,
       });
       await publicClient.waitForTransactionReceipt({ hash: tx });
 

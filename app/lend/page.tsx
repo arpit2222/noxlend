@@ -5,7 +5,7 @@ import { useAccount, useWalletClient, usePublicClient, useChainId } from "wagmi"
 import { getNoxClient, decryptHandle, formatUSDC } from "@/lib/noxClient";
 import { useEnsureChain } from "@/lib/useEnsureChain";
 import { DEPLOYED_ADDRESSES, NoxLendABI, MockUSDCABI } from "@/lib/contracts";
-import { parseUnits } from "viem";
+import { parseUnits, encodeFunctionData } from "viem";
 import EncryptedBalance from "@/components/EncryptedBalance";
 import DepositForm from "@/components/DepositForm";
 import WithdrawForm from "@/components/WithdrawForm";
@@ -21,6 +21,7 @@ export default function LendPage() {
   const [supplyHandle, setSupplyHandle] = useState<`0x${string}` | null>(null);
   const [mintTxHash, setMintTxHash] = useState<string | null>(null);
   const [mintLoading, setMintLoading] = useState(false);
+  const [mintError, setMintError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const loadSupplyBalance = useCallback(async () => {
@@ -45,17 +46,29 @@ export default function LendPage() {
   async function mintTestTokens() {
     if (!walletClient || !publicClient || !address) return;
     setMintLoading(true);
+    setMintError(null);
     try {
       await ensureChain();
+      const gasPrice = await publicClient.getGasPrice();
       const amount = parseUnits("1000", 6);
-      const tx = await walletClient.writeContract({
-        address: DEPLOYED_ADDRESSES.MockUSDC,
+
+      const data = encodeFunctionData({
         abi: MockUSDCABI,
         functionName: "mint",
         args: [address, amount],
       });
+      const tx = await walletClient.sendTransaction({
+        to: DEPLOYED_ADDRESSES.MockUSDC,
+        data,
+        gas: 100000n,
+        gasPrice,
+      });
       await publicClient.waitForTransactionReceipt({ hash: tx });
       setMintTxHash(tx);
+    } catch (err: any) {
+      console.error("Mint error:", err);
+      const detail = err?.cause?.reason || err?.cause?.message || err?.shortMessage || err?.message || "Mint failed";
+      setMintError(detail);
     } finally {
       setMintLoading(false);
     }
@@ -127,6 +140,11 @@ export default function LendPage() {
         >
           {mintLoading ? "Minting..." : "Mint 1,000 mUSDC"}
         </button>
+        {mintError && (
+          <div className="mt-3 bg-red-900/20 border border-red-500/30 rounded-lg p-3">
+            <p className="text-red-400 text-sm">{mintError}</p>
+          </div>
+        )}
         <TxToast hash={mintTxHash} onClose={() => setMintTxHash(null)} />
       </div>
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useAccount, usePublicClient } from "wagmi";
+import { useAccount, usePublicClient, useChainId } from "wagmi";
+import { useEnsureChain } from "@/lib/useEnsureChain";
 import { DEPLOYED_ADDRESSES, NoxLendABI } from "@/lib/contracts";
 import EncryptedBalance from "@/components/EncryptedBalance";
 import BorrowForm from "@/components/BorrowForm";
@@ -11,6 +12,8 @@ import PrivacyBadge from "@/components/PrivacyBadge";
 export default function BorrowPage() {
   const { address, isConnected } = useAccount();
   const publicClient = usePublicClient();
+  const chainId = useChainId();
+  const ensureChain = useEnsureChain();
   const [borrowHandle, setBorrowHandle] = useState<`0x${string}` | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -48,8 +51,23 @@ export default function BorrowPage() {
     );
   }
 
+  const wrongNetwork = chainId !== 421614;
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
+      {wrongNetwork && (
+        <div className="mb-6 bg-yellow-900/30 border border-yellow-500/40 rounded-xl p-4 flex items-center justify-between">
+          <p className="text-yellow-300 text-sm">
+            ⚠️ Wrong network. Switch to <strong>Arbitrum Sepolia</strong> (chain ID 421614).
+          </p>
+          <button
+            onClick={() => ensureChain()}
+            className="ml-4 bg-yellow-500 hover:bg-yellow-400 text-black text-sm font-semibold px-3 py-1.5 rounded-lg"
+          >
+            Switch Network
+          </button>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold">Borrower Dashboard</h1>
